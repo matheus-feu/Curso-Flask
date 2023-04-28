@@ -58,7 +58,7 @@ def fields_type(dic):
 
                 if not isinstance(fields[k], v):
                     tipo = str(v).split("'")[1]
-                    return f"the field '{k}' does not correspond to the type ({tipo})", 400
+                    return {"error": f"the field '{k}' does not correspond to the type ({tipo})"}, 400
 
             return function(*args, **kwargs)
 
@@ -77,7 +77,7 @@ def fields_required(lista):
             lista2 = lista if isinstance(lista, list) else list(lista.keys())
             notfound = [x for x in lista2 if not x in fields]
             if notfound:
-                return "Fields not found: \n\t" + "\n\t".join(notfound), 400
+                return {"error": f"the fields {notfound} are required"}, 400
 
             if isinstance(lista, dict):
                 for k, v in lista.items():
@@ -86,7 +86,7 @@ def fields_required(lista):
 
                     if isinstance(v, DtField):
                         ndt = v.convert(fields[k])
-                        if not ndt: return f"The field '{k}' don't corresponds to date format '{v.format}'", 400
+                        if not ndt: return {"error": f"the field '{k}' date format invalid!"}, 400
                         fields[k] = ndt
                         continue
 
@@ -95,7 +95,7 @@ def fields_required(lista):
 
                     if not isinstance(fields[k], v):
                         tipo = str(v).split("'")[1]
-                        return f"the field '{k}' does not correspond to the type ({tipo})", 400
+                        return {"error": f"the field '{k}' does not correspond to the type ({tipo})"}, 400
 
             result = function(*args, **kwargs)
             return result
@@ -105,7 +105,8 @@ def fields_required(lista):
     return decorator
 
 
-def fields_notEmpty(lista):  # fields_notEmpty(['key1','key2'])        => string|list
+# fields_notEmpty(['key1','key2'])        => string|list
+def fields_not_empty(lista):
     def decorator(function):
         @wraps(function)
         def wrapper(*args, **kwargs):
@@ -114,27 +115,27 @@ def fields_notEmpty(lista):  # fields_notEmpty(['key1','key2'])        => string
 
             for field in lista:
                 if not field in fields:
-                    return f"Field '{field}' not found!", 404
+                    return {"error": f"Field '{field}' not found!"}, 404
 
             for k, v in fields.items():
                 if k in lista:
                     if v is None:
-                        return f"Field '{k}' must not be empty!", 400
+                        return {"error": f"Required field '{k}' must not be empty!"}, 400
 
                     if isinstance(v, dt):
                         continue
 
                     if isinstance(v, int) or isinstance(v, float):
                         if v is None:
-                            return f"Field '{k}' must not be empty!", 400
+                            return {"error": f"Required field '{k}' must not be empty!"}, 400
                         continue
 
                     if isinstance(v, list):
                         if not len(v):
-                            return f"Field '{k}' must not be empty!", 400
+                            return {"error": f"Required field '{k}' must not be empty!"}, 400
                     else:
                         if v.strip() == "":
-                            return f"Field '{k}' must not be empty!", 400
+                            return {"error": f"Required field '{k}' must not be empty!"}, 400
 
             return function(*args, **kwargs)
 
@@ -143,7 +144,8 @@ def fields_notEmpty(lista):  # fields_notEmpty(['key1','key2'])        => string
     return decorator
 
 
-def fields_dateValid(lista, format):  # fields_dateValid(['key1','key2'],'%Y-%m-%d')
+# fields_dateValid(['key1','key2'],'%Y-%m-%d')
+def fields_date_valid(lista, format):
     def decorator(function):
         @wraps(function)
         def wrapper(*args, **kwargs):
@@ -152,7 +154,7 @@ def fields_dateValid(lista, format):  # fields_dateValid(['key1','key2'],'%Y-%m-
 
             for field in lista:
                 if not field in fields:
-                    return f"Field '{field}' not found!", 404
+                    return {"error": f"Field '{field}' not found!"}, 404
 
             for k, v in fields.items():
                 if k in lista:
@@ -160,7 +162,7 @@ def fields_dateValid(lista, format):  # fields_dateValid(['key1','key2'],'%Y-%m-
                         dt.strptime(v, format)
                         kwargs["fields"][k] = dt.strptime(v, format)
                     except ValueError:
-                        return f"Field '{k}' date format invalid!", 400
+                        return {"error": f"Field '{k}' date format invalid!"}, 400
 
             return function(*args, **kwargs)
 
@@ -169,7 +171,8 @@ def fields_dateValid(lista, format):  # fields_dateValid(['key1','key2'],'%Y-%m-
     return decorator
 
 
-def fields_valuesAllowed(lista):  # lista => {'field1',['blue','red']}
+# lista => {'field1',['blue','red']}
+def fields_values_allowed(lista):
     def decorator(function):
         @wraps(function)
         def wrapper(*args, **kwargs):
@@ -178,11 +181,11 @@ def fields_valuesAllowed(lista):  # lista => {'field1',['blue','red']}
 
             for k, v in lista.items():
                 if not k in fields:
-                    return f"Field '{k}' not found!", 404
+                    return {"error": f"Field '{k}' not found!"}, 404
 
             for k, v in lista.items():
                 if not fields[k] in v:
-                    return f"value '{fields[k]}' not allowed in field '{k}'", 404
+                    return {"error": f"Field '{k}' value not allowed!"}, 400
 
             return function(*args, **kwargs)
 
@@ -191,7 +194,8 @@ def fields_valuesAllowed(lista):  # lista => {'field1',['blue','red']}
     return decorator
 
 
-def fields_Allowed(lista, removeFields=False):  # fields_Allowed(['key1','key2'])
+# fields_Allowed(['key1','key2'])
+def fields_allowed(lista, removeFields=False):
     def decorator(function):
         @wraps(function)
         def wrapper(*args, **kwargs):
@@ -205,7 +209,7 @@ def fields_Allowed(lista, removeFields=False):  # fields_Allowed(['key1','key2']
 
             for field in fields:
                 if not field in lista:
-                    return f"Field '{field}' not allowed!", 404
+                    return {"error": f"Field '{field}' not allowed!"}, 400
 
             return function(*args, **kwargs)
 
@@ -218,7 +222,7 @@ def fields_Allowed(lista, removeFields=False):  # fields_Allowed(['key1','key2']
 # fields_ValidateList('key1',int)                 => [1,2,3,4]
 # fields_ValidateList('key1',str)                 => ['A','B','C','D']
 # fields_ValidateList('key1',dict)                => [{}.{},{}]
-def fields_ValidateList(key, obj):
+def fields_validate_list(key, obj):
     def decorator(function):
         @wraps(function)
         def wrapper(*args, **kwargs):
@@ -228,7 +232,7 @@ def fields_ValidateList(key, obj):
             tipo = str(obj).split("'")[1]
 
             if not isinstance(field, list):
-                return f"'{key}' is not a list!", 400
+                return {"error": f"Field '{key}' must be a list!"}, 400
 
             if isinstance(obj, dict):
                 newVal = []
@@ -236,7 +240,7 @@ def fields_ValidateList(key, obj):
                     lista2 = list(obj.keys())
                     notfound = [x for x in lista2 if not x in val.keys()]
                     if notfound:
-                        return f"Some record at {key} does not have keys:\n\t" + '\n\t'.join(notfound), 400
+                        return {"error": f"Some record at {key} does not have keys:\n\t" + '\n\t'.join(notfound)}, 400
 
                     for k, v in obj.items():
                         if val[k] == None:
@@ -244,7 +248,8 @@ def fields_ValidateList(key, obj):
 
                         if isinstance(v, DtField):
                             ndt = v.convert(val[k])
-                            if not ndt: return f"The field '{k}' at field '{key}' not corresponds to date format '{v.format}'", 400
+                            if not ndt: return {
+                                "error": f"The field '{k}' at field '{key}' not corresponds to date format '{v.format}"}, 400
                             val[k] = ndt
                             continue
 
@@ -253,13 +258,13 @@ def fields_ValidateList(key, obj):
 
                         if not isinstance(val[k], v):
                             tipo = str(v).split("'")[1]
-                            return f"The field '{k}' at '{key}' not corresponds to type '{tipo}'", 400
+                            return {"error": f"the field '{k}' at field '{key}' does not correspond to the type ({tipo})"}, 400
 
                     newVal.append(val)
                 kwargs["fields"][key] = newVal
             else:
                 for v in field:
-                    if not isinstance(v, obj): return f"value of key '{key}' not corresponds to type '{tipo}'"
+                    if not isinstance(v, obj): return {"error": f"the field '{key}' does not correspond to the type ({tipo})"}, 400
 
             result = function(*args, **kwargs)
             return result
@@ -269,8 +274,8 @@ def fields_ValidateList(key, obj):
     return decorator
 
 
-def fields_ValidateArgumentObject(field, func, newName=None, msg=None, replaceField=False,
-                                  condition=True):  # lista => {'field1',Func}
+# lista => {'field1',Func}
+def fields_validate_argument_object(field, func, new_name=None, replace_field=False, condition=True):
     def decorator(function):
         @wraps(function)
         def wrapper(*args, **kwargs):
@@ -286,14 +291,14 @@ def fields_ValidateArgumentObject(field, func, newName=None, msg=None, replaceFi
                 code = 404 if isinstance(v, bool) else (404 if len(v) < 3 else v[2])
                 return msg if msg else msg, code
 
-            if newName and replaceField:
-                fields[newName] = v
+            if new_name and replace_field:
+                fields[new_name] = v
                 del fields[field]
 
-            if newName and not replaceField:
-                fields[newName] = v
+            if new_name and not replace_field:
+                fields[new_name] = v
 
-            if not newName and replaceField:
+            if not new_name and replace_field:
                 fields[field] = v
 
             return function(*args, **kwargs)
@@ -303,7 +308,8 @@ def fields_ValidateArgumentObject(field, func, newName=None, msg=None, replaceFi
     return decorator
 
 
-def fields_ValidateObject(lista):  # lista => {'field1',Func}
+# lista => {'field1',Func}
+def fields_validate_object(lista):
     def decorator(function):
         @wraps(function)
         def wrapper(*args, **kwargs):
@@ -312,11 +318,10 @@ def fields_ValidateObject(lista):  # lista => {'field1',Func}
 
             for k, v in lista.items():
                 if not k in fields:
-                    return f"Field '{k}' not found!", 404
-
+                    return {"message": f"Field '{k}' not found!"}, 404
             for k, v in lista.items():
                 if not fields[k] in v:
-                    return f"value '{fields[k]}' not allowed in field '{k}'", 404
+                    return {"message": f"value '{fields[k]}' not allowed in field '{k}'"}, 404
 
             return function(*args, **kwargs)
 
